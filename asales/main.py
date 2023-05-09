@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import sys
+from enum import Enum, auto
 from asales.constants import *
 
 
@@ -62,3 +63,84 @@ class DataLoader:
     @property
     def file_list(self):
         return self._file_list
+
+
+class ByType(Enum):
+    BY_HOUR = auto()
+    BY_DAY_OF_WEEK = auto()
+    BY_MONTH = auto()
+    BY_YEAR = auto()
+    BY_CITY = auto()
+    BY_STATE = auto()
+
+
+class DataClean:
+    """
+        Handles cleaning data of the dataframe, removes NaN and
+        configured unnecessary values.
+    """
+    def __init__(self, df, invalid_values=[]):
+        self._df = df
+        self._invalid_values = invalid_values
+
+
+    @property
+    def invalid_values(self):
+        return self._invalid_values
+
+    @invalid_values.setter
+    def invalid_values(self, invalid_values):
+        self._invalid_values = invalid_values
+
+    @property
+    def data_frame(self):
+        return self._df
+
+    @data_frame.setter
+    def data_frame(self, df):
+        self._df = df
+
+    def remove_nan_vals(self):
+        pass
+
+    def remove_invalid_vals(self):
+        pass
+
+
+class DataValues:
+    """
+       Manages obtaining meaningful data values from the sales dataframe.
+       Use the ByType for different filters
+    """
+    def __init__(self, df, do_clean=DO_CLEAN_BY_DEFAULT):
+        self._df = df
+
+    @property
+    def data_frame(self):
+        return self._df
+
+    @data_frame.setter
+    def data_frame(self, df):
+        self._df = df
+
+    def get_sold_count_avg_by(self, by_type: ByType):
+        pass
+
+    def get_best_products_by(self, by_type: ByType):
+        pass
+
+    def get_best_product_n_pairs_by(self, by_type: ByType):
+        pass
+
+
+class GeoPlotUS:
+    """
+        Handles plotting geo plot for US with states/cities
+    """
+    pass
+
+
+if __name__ == "__main__":
+    dl = DataLoader("../data")
+    dl.init()
+    print(dl.data_frame.head(3))
