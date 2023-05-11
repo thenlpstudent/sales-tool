@@ -79,7 +79,8 @@ YEAR_LABEL = "Year"
 HOUR_LABEL = "Hour"
 COUNT_LABEL = "Count"
 DATETIME_LABEL = "Datetime"
-INVALID_VALUES = ["Product"]
+TOTAL_PRICE_LABEL = "Total Price"
 
+INVALID_VALUES = ["Product"]
 FILE_SIZE_CAP = -1
 DATE_FORMAT = "%m/%d/%y %H:%M"

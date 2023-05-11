@@ -84,6 +84,7 @@ class DataClean:
 
         self._df = self.remove_nan_vals()
         self._df = self.remove_invalid_vals()
+        self._df = self._df.astype({PRICE_EACH_LABEL: "float", QTY_ORDERED_LABEL: "int"})
 
     @property
     def invalid_values(self):
@@ -136,34 +137,49 @@ class DataValues:
     def data_frame(self, df):
         self._df = df
 
-    def filter_by_type(self, by_type):
+    def group_by_type(self, by_type):
         data_filter = DataFilterFactory(self._df, by_type).create_data_filter_from_type()
         data_filter.add_type_col()
-        data_filter.filter()
+        data_filter.groupby()
+        return data_filter.data_frame
+
+    def filter_by_type(self, by_type, value):
+        data_filter = DataFilterFactory(self._df, by_type).create_data_filter_from_type()
+        data_filter.add_type_col()
+        data_filter.filter(value)
         return data_filter.data_frame
 
     def get_sold_count_avg_by(self, by_type: ByType):
-        self._df[COUNT_LABEL] = 1
-        df = self.filter_by_type(by_type)
-        col_name = DataFilterFactory(self._df, by_type).create_data_filter_from_type().get_col_name()
-        sold_count_df = df.sum()[[col_name, COUNT_LABEL]]
+        self._df[COUNT_LABEL] = 1 
+        self._df[TOTAL_PRICE_LABEL] = self._df[QTY_ORDERED_LABEL] * self._df[PRICE_EACH_LABEL]
+        df = self.group_by_type(by_type)
+
+        col_name = ByType.get_type_lbl(by_type)
+        sold_count_df = df.sum()[[col_name, COUNT_LABEL, TOTAL_PRICE_LABEL]]
         total = sold_count_df[COUNT_LABEL].sum()
+        totalSales = sold_count_df[TOTAL_PRICE_LABEL].sum()
+
         sold_count_df[COUNT_LABEL] = sold_count_df[COUNT_LABEL].apply(lambda x: x / total * 100)
+        sold_count_df[TOTAL_PRICE_LABEL] = sold_count_df[TOTAL_PRICE_LABEL].apply(lambda x: x / totalSales * 100)
+
         return sold_count_df
 
     def get_sold_count_by(self, by_type: ByType):
         self._df[COUNT_LABEL] = 1
-        df = self.filter_by_type(by_type)
-        col_name = DataFilterFactory(self._df, by_type).create_data_filter_from_type().get_col_name()
-        sold_count_df = df.sum()[[col_name, COUNT_LABEL]]
+        self._df[TOTAL_PRICE_LABEL] = self._df[QTY_ORDERED_LABEL] * self._df[PRICE_EACH_LABEL]
+        df = self.group_by_type(by_type)
+        col_name = ByType.get_type_lbl(by_type)
+        sold_count_df = df.sum()[[col_name, COUNT_LABEL, TOTAL_PRICE_LABEL]]
         return sold_count_df
 
-    def get_best_products_by(self, by_type: ByType):
-        df = self.filter_by_type(by_type)
-        pass
+    def get_best_products_by(self, by_type: ByType, value):
+        self._df[COUNT_LABEL] = 1
+        self._df[TOTAL_PRICE_LABEL] = self._df[QTY_ORDERED_LABEL] * self._df[PRICE_EACH_LABEL]
+        self._df = self.filter_by_type(by_type, value)
+        self._df = self._df.groupby(PRODUCT_LABEL, as_index=False)
+        return self._df.sum()[[PRODUCT_LABEL, COUNT_LABEL, TOTAL_PRICE_LABEL]]
 
-    def get_best_product_n_pairs_by(self, by_type: ByType):
-        df = self.filter_by_type(by_type)
+    def get_best_product_pairs_by(self, by_type: ByType):
         pass
 
 
@@ -178,4 +194,4 @@ if __name__ == "__main__":
     dl = DataLoader("../data")
     dl.init()
     dv = DataValues(dl.data_frame)
-    print(dv.get_sold_count_by(ByType.BY_STATE))
+    print(dv.get_best_products_by(ByType.BY_STATE, "CA"))

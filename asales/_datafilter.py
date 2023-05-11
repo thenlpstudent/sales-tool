@@ -43,12 +43,17 @@ class ByType(Enum):
         if by_type is ByType.BY_MONTH:
             return MONTH_LABEL
 
+
 class AbstractDataFilter(ABC):
     def __init__(self, df):
         self._df = df
 
     @abstractmethod
-    def filter(self):
+    def groupby(self):
+        pass
+
+    @abstractmethod
+    def filter(self, value):
         pass
 
     @abstractmethod
@@ -71,7 +76,7 @@ class DataFilterFactory:
         elif self._type is ByType.BY_STATE:
             return DataFilterState(self._df)
         elif self._type is ByType.BY_YEAR or self._type is ByType.BY_MONTH or self._type is ByType.BY_DAY_OF_WEEK \
-                    or self._type is ByType.BY_HOUR:
+                or self._type is ByType.BY_HOUR:
             return DataFilterDate(df=self._df, by_type=self._type)
         else:
             raise NotImplementedError(f"Type '{ByType.get_type_str(self._type)}' is not yet implemented!")
@@ -85,8 +90,11 @@ class DataFilterCity(AbstractDataFilter):
     def __init__(self, df):
         super(DataFilterCity, self).__init__(df)
 
-    def filter(self):
+    def groupby(self):
         self._df = self._df.groupby(CITY_LABEL, as_index=False)
+
+    def filter(self, city):
+        self._df.loc[self._df[CITY_LABEL].str.contains(city)]
 
     @staticmethod
     def _format_city(value):
@@ -108,8 +116,18 @@ class DataFilterState(AbstractDataFilter):
     def __init__(self, df):
         super(DataFilterState, self).__init__(df)
 
-    def filter(self):
+    def groupby(self):
         self._df = self._df.groupby(STATE_LABEL, as_index=False)
+
+    def filter(self, state):
+        state = state.strip()
+
+        if state not in abbrev_to_us_state.keys():
+            if state not in us_state_to_abbrev.keys():
+                raise ValueError(f"State {state} is invalid!")
+            state = us_state_to_abbrev[state]
+
+        self._df.loc[self._df[STATE_LABEL].str.contains(state)]
 
     def add_type_col(self):
         self._df[STATE_LABEL] = self._df[PURCHASE_ADDRESS_LABEL].apply(DataFilterState._format_state)
@@ -133,14 +151,18 @@ class DataFilterDate(AbstractDataFilter):
         super(DataFilterDate, self).__init__(df)
         self._type = by_type
 
-    def filter(self):
+    def groupby(self):
         col_lbl = self.get_col_name()
-        self._df = self._df[[col_lbl, COUNT_LABEL]]
+        self._df = self._df[[col_lbl, COUNT_LABEL, TOTAL_PRICE_LABEL]]
         self._df = self._df.groupby(col_lbl, as_index=False)
+
+    def filter(self, value):
+        col_lbl = self.get_col_name()
+        self._df = self._df[[col_lbl, PRODUCT_LABEL, COUNT_LABEL, TOTAL_PRICE_LABEL]]
+        self._df = self._df.loc[self._df[col_lbl] == value]
 
     def add_type_col(self):
         self._df[DATETIME_LABEL] = pd.to_datetime(self._df[ORDER_DATE_LABEL], format=DATE_FORMAT, errors="ignore")
-        print(self._df[DATETIME_LABEL])
         if self._type is ByType.BY_YEAR:
             self._df[YEAR_LABEL] = self._df[DATETIME_LABEL].dt.year
         elif self._type is ByType.BY_MONTH:
