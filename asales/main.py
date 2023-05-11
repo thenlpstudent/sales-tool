@@ -1,8 +1,9 @@
 import pandas as pd
 import os
 import sys
-from enum import Enum, auto
-from asales.constants import *
+from _datafilter import *
+
+pd.options.mode.chained_assignment = None  # Raise an exception, warn, or no action if trying to use chained assignment
 
 
 def exit_system(message):
@@ -26,13 +27,18 @@ class DataLoader:
         single Pandas Data Frame
     """
 
-    def __init__(self, data_folder=DATA_DIR):
+    def __init__(self, data_folder=DATA_DIR, size_cap=FILE_SIZE_CAP):
         self._folder_path = data_folder
-        self._file_list = self._get_file_names()
         self._data_frame = None
+        self._size_cap = size_cap
+        self._file_list = self._get_file_names()
 
     def _get_file_names(self):
-        return [os.path.join(self._folder_path, f) for f in os.listdir(self._folder_path)
+        files = os.listdir(self._folder_path)
+        if self._size_cap == -1:
+            self._size_cap = len(files)
+        file_list = files[0:self._size_cap]
+        return [os.path.join(self._folder_path, f) for f in file_list
                 if os.path.isfile(os.path.join(self._folder_path, f))]
 
     def init(self):
@@ -65,24 +71,19 @@ class DataLoader:
         return self._file_list
 
 
-class ByType(Enum):
-    BY_HOUR = auto()
-    BY_DAY_OF_WEEK = auto()
-    BY_MONTH = auto()
-    BY_YEAR = auto()
-    BY_CITY = auto()
-    BY_STATE = auto()
-
-
 class DataClean:
     """
         Handles cleaning data of the dataframe, removes NaN and
         configured unnecessary values.
     """
-    def __init__(self, df, invalid_values=[]):
+
+    def __init__(self, df, invalid_col, invalid_values=[]):
         self._df = df
+        self._invalid_col = invalid_col
         self._invalid_values = invalid_values
 
+        self._df = self.remove_nan_vals()
+        self._df = self.remove_invalid_vals()
 
     @property
     def invalid_values(self):
@@ -101,10 +102,19 @@ class DataClean:
         self._df = df
 
     def remove_nan_vals(self):
-        pass
+        return self._df.dropna()
+
+    @staticmethod
+    def remove_invalid_val(df, col, value):
+        if col not in df.columns:
+            return df
+        return df.loc[df[col] != value]
 
     def remove_invalid_vals(self):
-        pass
+        df = self._df
+        for value in self._invalid_values:
+            df = DataClean.remove_invalid_val(df, self._invalid_col, value)
+        return df
 
 
 class DataValues:
@@ -112,8 +122,11 @@ class DataValues:
        Manages obtaining meaningful data values from the sales dataframe.
        Use the ByType for different filters
     """
-    def __init__(self, df, do_clean=DO_CLEAN_BY_DEFAULT):
+
+    def __init__(self, df, do_clean=DO_CLEAN_BY_DEFAULT, invalid_col=PRODUCT_LABEL, invalid_values=INVALID_VALUES):
         self._df = df
+        if do_clean:
+            self._df = DataClean(self._df, invalid_col, invalid_values).data_frame
 
     @property
     def data_frame(self):
@@ -123,13 +136,34 @@ class DataValues:
     def data_frame(self, df):
         self._df = df
 
+    def filter_by_type(self, by_type):
+        data_filter = DataFilterFactory(self._df, by_type).create_data_filter_from_type()
+        data_filter.add_type_col()
+        data_filter.filter()
+        return data_filter.data_frame
+
     def get_sold_count_avg_by(self, by_type: ByType):
-        pass
+        self._df[COUNT_LABEL] = 1
+        df = self.filter_by_type(by_type)
+        col_name = DataFilterFactory(self._df, by_type).create_data_filter_from_type().get_col_name()
+        sold_count_df = df.sum()[[col_name, COUNT_LABEL]]
+        total = sold_count_df[COUNT_LABEL].sum()
+        sold_count_df[COUNT_LABEL] = sold_count_df[COUNT_LABEL].apply(lambda x: x / total * 100)
+        return sold_count_df
+
+    def get_sold_count_by(self, by_type: ByType):
+        self._df[COUNT_LABEL] = 1
+        df = self.filter_by_type(by_type)
+        col_name = DataFilterFactory(self._df, by_type).create_data_filter_from_type().get_col_name()
+        sold_count_df = df.sum()[[col_name, COUNT_LABEL]]
+        return sold_count_df
 
     def get_best_products_by(self, by_type: ByType):
+        df = self.filter_by_type(by_type)
         pass
 
     def get_best_product_n_pairs_by(self, by_type: ByType):
+        df = self.filter_by_type(by_type)
         pass
 
 
@@ -143,4 +177,5 @@ class GeoPlotUS:
 if __name__ == "__main__":
     dl = DataLoader("../data")
     dl.init()
-    print(dl.data_frame.head(3))
+    dv = DataValues(dl.data_frame)
+    print(dv.get_sold_count_by(ByType.BY_STATE))
