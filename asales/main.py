@@ -150,7 +150,7 @@ class DataValues:
         return data_filter.data_frame
 
     def get_sold_count_avg_by(self, by_type: ByType):
-        self._df[COUNT_LABEL] = 1 
+        self._df[COUNT_LABEL] = 1
         self._df[TOTAL_PRICE_LABEL] = self._df[QTY_ORDERED_LABEL] * self._df[PRICE_EACH_LABEL]
         df = self.group_by_type(by_type)
 
@@ -179,9 +179,16 @@ class DataValues:
         self._df = self._df.groupby(PRODUCT_LABEL, as_index=False)
         return self._df.sum()[[PRODUCT_LABEL, COUNT_LABEL, TOTAL_PRICE_LABEL]]
 
-    def get_best_product_pairs_by(self, by_type: ByType):
-        pass
-
+    def get_best_product_pairs_by(self, by_type: ByType, value, n=-1):
+        self._df[COUNT_LABEL] = 1
+        self._df[TOTAL_PRICE_LABEL] = self._df[QTY_ORDERED_LABEL] * self._df[PRICE_EACH_LABEL]
+        self._df = self.filter_by_type(by_type, value)
+        self._df = self._df.loc[self._df.duplicated(subset=[ORDER_ID_LABEL], keep=False)]
+        self._df[GROUP_PAIR_LABEL] = self._df.groupby(ORDER_ID_LABEL, as_index=False)[PRODUCT_LABEL]. \
+            transform(lambda x: GROUP_PAIR_DELIM.join(x))
+        self._df.drop_duplicates(subset=[ORDER_ID_LABEL, GROUP_PAIR_LABEL], keep="first",
+                                 ignore_index=True, inplace=True)
+        return self._df
 
 class GeoPlotUS:
     """
@@ -194,4 +201,6 @@ if __name__ == "__main__":
     dl = DataLoader("../data")
     dl.init()
     dv = DataValues(dl.data_frame)
-    print(dv.get_best_products_by(ByType.BY_STATE, "CA"))
+    print(dv.get_best_products_by(ByType.BY_HOUR, 3))
+    dv = DataValues(dl.data_frame)
+    print(dv.get_best_products_by(ByType.BY_DAY_OF_WEEK, 3))

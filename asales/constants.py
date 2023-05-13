@@ -80,7 +80,9 @@ HOUR_LABEL = "Hour"
 COUNT_LABEL = "Count"
 DATETIME_LABEL = "Datetime"
 TOTAL_PRICE_LABEL = "Total Price"
+GROUP_PAIR_LABEL = "Group By Pairs"
 
 INVALID_VALUES = ["Product"]
 FILE_SIZE_CAP = -1
 DATE_FORMAT = "%m/%d/%y %H:%M"
+GROUP_PAIR_DELIM = ","

@@ -94,7 +94,7 @@ class DataFilterCity(AbstractDataFilter):
         self._df = self._df.groupby(CITY_LABEL, as_index=False)
 
     def filter(self, city):
-        self._df.loc[self._df[CITY_LABEL].str.contains(city)]
+        self._df = self._df.loc[self._df[CITY_LABEL].str.contains(city)]
 
     @staticmethod
     def _format_city(value):
@@ -125,9 +125,9 @@ class DataFilterState(AbstractDataFilter):
         if state not in abbrev_to_us_state.keys():
             if state not in us_state_to_abbrev.keys():
                 raise ValueError(f"State {state} is invalid!")
-            state = us_state_to_abbrev[state]
 
-        self._df.loc[self._df[STATE_LABEL].str.contains(state)]
+
+        self._df = self._df.loc[self._df[STATE_LABEL].str.contains(state)]
 
     def add_type_col(self):
         self._df[STATE_LABEL] = self._df[PURCHASE_ADDRESS_LABEL].apply(DataFilterState._format_state)
@@ -150,6 +150,15 @@ class DataFilterDate(AbstractDataFilter):
     def __init__(self, by_type, df):
         super(DataFilterDate, self).__init__(df)
         self._type = by_type
+        self._do_add_col_subset = True
+
+    @property
+    def do_add_col_subset(self):
+        return self._do_add_col_subset
+
+    @do_add_col_subset.setter
+    def do_add_col_subset(self, value):
+        self._do_add_col_subset = value
 
     def groupby(self):
         col_lbl = self.get_col_name()
@@ -158,7 +167,8 @@ class DataFilterDate(AbstractDataFilter):
 
     def filter(self, value):
         col_lbl = self.get_col_name()
-        self._df = self._df[[col_lbl, PRODUCT_LABEL, COUNT_LABEL, TOTAL_PRICE_LABEL]]
+        if self._do_add_col_subset:
+            self._df = self._df[[col_lbl,ORDER_ID_LABEL, PRODUCT_LABEL, COUNT_LABEL, TOTAL_PRICE_LABEL]]
         self._df = self._df.loc[self._df[col_lbl] == value]
 
     def add_type_col(self):
