@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import sys
 from _datafilter import *
+import seaborn as sns
 
 pd.options.mode.chained_assignment = None  # Raise an exception, warn, or no action if trying to use chained assignment
 
@@ -168,8 +169,7 @@ class DataValues:
         self._df[COUNT_LABEL] = 1
         self._df[TOTAL_PRICE_LABEL] = self._df[QTY_ORDERED_LABEL] * self._df[PRICE_EACH_LABEL]
         df = self.group_by_type(by_type)
-        col_name = ByType.get_type_lbl(by_type)
-        sold_count_df = df.sum()[[col_name, COUNT_LABEL, TOTAL_PRICE_LABEL]]
+        sold_count_df = df.sum()
         return sold_count_df
 
     def get_best_products_by(self, by_type: ByType, value):
@@ -190,6 +190,62 @@ class DataValues:
                                  ignore_index=True, inplace=True)
         return self._df
 
+
+def _best_time_for_advert_alltime(df):
+    dv = DataValues(df)
+    by_hour_df = dv.get_sold_count_by(ByType.BY_HOUR)
+    return by_hour_df.sort_values(by=COUNT_LABEL, ascending=False)
+
+
+def top_n_best_time_for_advert_alltime(df, n=3):
+    return _best_time_for_advert_alltime(df).head(n)
+
+
+def _best_time_for_advert_by_state(df, state="CA"):
+    state = state.strip()
+    if state not in abbrev_to_us_state.keys():
+        raise ValueError(f"State {state} is not defined!")
+
+    state = abbrev_to_us_state[state]
+    dv = DataValues(df)
+    df = dv.data_frame
+    filter_state = DataFilterState(df)
+    filter_state.add_type_col()
+    filter_state.filter(state)
+    df = filter_state.data_frame
+    dv.data_frame = df
+    by_hour_df = dv.get_sold_count_by(ByType.BY_HOUR)
+    return by_hour_df.sort_values(by=COUNT_LABEL, ascending=False)
+
+
+def top_n_best_time_for_advert_by_state(df, state="CA", n=3):
+    return _best_time_for_advert_by_state(df, state).head(n)
+
+
+def render_advert_chart_alltime(df, title, x_label=ADVERT_ALLTIME_X_LABEL, y_label=ADVERT_ALLTIME_Y_LABEL):
+    df = _best_time_for_advert_alltime(df)
+    df[HOUR_LABEL] = df[HOUR_LABEL].apply(lambda x: x + 1)
+    df_chart = pd.DataFrame({"x": df[HOUR_LABEL], "y": df[COUNT_LABEL]})
+    ax = sns.barplot(df_chart, x="x", y="y")
+    ax.set(xlabel=x_label, ylabel=y_label)
+    ax.set_title(title)
+    return ax
+
+
+def render_advert_chart_by_state(df, state, title, x_label=ADVERT_ALLTIME_X_LABEL, y_label=ADVERT_ALLTIME_Y_LABEL):
+    df = _best_time_for_advert_by_state(df, state)
+    df[HOUR_LABEL] = df[HOUR_LABEL].apply(lambda x: x + 1)
+    df_chart = pd.DataFrame({"x": df[HOUR_LABEL], "y": df[COUNT_LABEL]})
+    ax = sns.barplot(df_chart, x="x", y="y")
+    ax.set(xlabel=x_label, ylabel=y_label)
+    ax.set_title(title)
+    return ax
+
+
+def save_fig_to_file(sns_plot, filename):
+    sns_plot.get_figure().savefig(f"{filename}.png")
+
+
 class GeoPlotUS:
     """
         Handles plotting geo plot for US with states/cities
@@ -200,7 +256,4 @@ class GeoPlotUS:
 if __name__ == "__main__":
     dl = DataLoader("../data")
     dl.init()
-    dv = DataValues(dl.data_frame)
-    print(dv.get_best_products_by(ByType.BY_HOUR, 3))
-    dv = DataValues(dl.data_frame)
-    print(dv.get_best_products_by(ByType.BY_DAY_OF_WEEK, 3))
+    save_fig_to_file(render_advert_chart_by_state(dl.data_frame, "TX", "Orders made in TX"), "advert_state_texas")

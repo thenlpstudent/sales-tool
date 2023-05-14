@@ -162,7 +162,7 @@ class DataFilterDate(AbstractDataFilter):
 
     def groupby(self):
         col_lbl = self.get_col_name()
-        self._df = self._df[[col_lbl, COUNT_LABEL, TOTAL_PRICE_LABEL]]
+        self._df = self._df.drop([DATETIME_LABEL], axis=1)
         self._df = self._df.groupby(col_lbl, as_index=False)
 
     def filter(self, value):

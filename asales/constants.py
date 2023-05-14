@@ -86,3 +86,7 @@ INVALID_VALUES = ["Product"]
 FILE_SIZE_CAP = -1
 DATE_FORMAT = "%m/%d/%y %H:%M"
 GROUP_PAIR_DELIM = ","
+
+#Chart parameters
+ADVERT_ALLTIME_X_LABEL = "Hours of Day (24-Hour)"
+ADVERT_ALLTIME_Y_LABEL = "Orders Made"
